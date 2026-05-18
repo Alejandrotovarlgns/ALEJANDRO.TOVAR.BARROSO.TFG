@@ -19,7 +19,7 @@
 
         #qrcode-container img { margin: 0 auto; border: 8px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
 
-        /* Ajustes para que las gráficas no se deformen y se vean estilizadas */
+        /* Ajustes para que las graficas no se deformen y se vean estilizadas */
         .chart-container { position: relative; width: 100%; height: 250px; }
     </style>
 </head>
@@ -30,11 +30,11 @@
         <a class="navbar-brand d-flex align-items-center" href="#">
             <span class="material-symbols-outlined me-2">analytics</span> TIENDA ONLINE
         </a>
-        <div class="navbar-nav ms-auto">
-            <button sec:authorize="hasRole('ADMIN')" class="btn btn-outline-warning d-flex align-items-center">
-                <span class="material-symbols-outlined me-2">picture_as_pdf</span> Exportar Informe
+        <div class="navbar-nav ms-auto d-flex align-items-center">
+            <button sec:authorize="hasRole('ADMIN')" type="button" onclick="enviarInformeEmail()" class="btn btn-outline-warning d-flex align-items-center">
+                <span class="material-symbols-outlined me-2">mail</span> Enviar Analítica Email
             </button>
-            <form th:action="@{/logout}" method="post" class="ms-2">
+            <form th:action="@{/logout}" method="post" class="ms-2 mb-0">
                 <button type="submit" class="btn btn-sm btn-outline-danger">Salir</button>
             </form>
         </div>
@@ -185,13 +185,9 @@
 
 <script th:inline="javascript">
     /* <![CDATA[ */
-
-    // 1. Extraemos de forma nativa la lista total enviada por Spring Boot Thymeleaf
     const productosBase = /*[[${listaCompleta}]]*/ [];
 
-    // --- LOGICA SCRIPT GRÁFICA 1: PRODUCTOS MÁS CONSULTADOS (TOP BARRAS) ---
     if (document.getElementById('graficaConsultas')) {
-        // Ordenamos los productos de mayor a menor visitas y nos quedamos con el Top 7
         const productosOrdenados = [...productosBase]
             .sort((a, b) => (b.consultas || 0) - (a.consultas || 0))
             .slice(0, 7);
@@ -221,11 +217,8 @@
         });
     }
 
-    // --- LOGICA SCRIPT GRÁFICA 2: ALERTAS DE STOCK BAJO (DÓNUT) ---
     if (document.getElementById('graficaStockBajo')) {
-        // Filtramos para capturar solo las líneas que tienen menos de 5 unidades reales
         const productosCriticos = productosBase.filter(p => p.stock < 5);
-
         const totalBajos = productosCriticos.length;
         const totalOK = productosBase.length - totalBajos;
 
@@ -252,6 +245,44 @@
 </script>
 
 <script>
+    // --- NUEVA FUNCIoN: EXTRACCIoN Y ENViO ASiNCRONO DEL INFORME CON IMaGENES ---
+    function enviarInformeEmail() {
+        // 1. Obtenemos las referencias activas de los dos graficos usando Chart.js
+        const chart1 = Chart.getChart("graficaConsultas");
+        const chart2 = Chart.getChart("graficaStockBajo");
+
+        // 2. Extraemos el codigo Base64 (las imagenes reales renderizadas en la vista)
+        const imgBase64_1 = chart1 ? chart1.toBase64Image() : "";
+        const imgBase64_2 = chart2 ? chart2.toBase64Image() : "";
+
+        // 3. Empaquetamos los parámetros simulando la estructura del formulario clasico x-www-form-urlencoded
+        const datosFormulario = new URLSearchParams();
+        datosFormulario.append('grafico1', imgBase64_1);
+        datosFormulario.append('grafico2', imgBase64_2);
+
+        alert("Procesando analíticas y generando PDF corporativo... Por favor, espera un momento.");
+
+        // 4. Lanzamos la petición POST asíncrona hacia el controlador de Spring Boot
+        fetch('/productos/exportar/pdf', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: datosFormulario
+        })
+        .then(response => {
+            if (response.ok) {
+                alert("¡Éxito rotundo! El informe PDF con tus dos gráficos dinámicos se ha enviado a alextbleganes@gmail.com");
+            } else {
+                alert("Error: El servidor no ha podido procesar o enviar el PDF adjunto.");
+            }
+        })
+        .catch(error => {
+            console.error("Error en Fetch:", error);
+            alert("No se ha podido establecer comunicación con el servidor local.");
+        });
+    }
+
     function prepararQR(boton) {
         const id = boton.getAttribute('data-id');
         const nombre = boton.getAttribute('data-nombre');

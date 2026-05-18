@@ -3,11 +3,16 @@ package org.example.controller;
 import org.example.entity.Producto;
 import org.example.service.ProductoService;
 import org.example.service.CategoriaService;
+import org.example.service.ProductoPdfService; // Inyectamos el nuevo servicio del PDF
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletResponse; // Necesario para la descarga del archivo
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -20,6 +25,9 @@ public class ProductoWebController {
 
     @Autowired
     private CategoriaService categoriaService;
+
+    @Autowired
+    private ProductoPdfService pdfService; // Instanciamos el servicio del PDF
 
     @GetMapping("/inventario")
     public String listar(Model model) {
@@ -170,5 +178,40 @@ public class ProductoWebController {
     @GetMapping("/login")
     public String login() {
         return "login";
+    }
+
+    // --- NUEVO ENPOINT: RECIBE LAS GRÁFICAS DEL FRONTEND Y ENVÍA EL PDF POR CORREO ---
+    @PostMapping("/productos/exportar/pdf")
+    @ResponseBody
+    public ResponseEntity<String> exportarYEnviarAPdf(
+            @RequestParam(value = "grafico1", required = false) String grafico1,
+            @RequestParam(value = "grafico2", required = false) String grafico2) {
+        try {
+            // Extraemos la lista real de la base de datos de MySQL
+            List<Producto> listaProductos = productoService.obtenerTodos();
+
+            // Ejecutamos el servicio unificado (monta la tabla, añade los gráficos y dispara el mail)
+            pdfService.generarYEnviarPorCorreo(listaProductos, grafico1, grafico2);
+
+            // Retornamos la palabra de confirmación que espera interceptar el JavaScript del inventario.html
+            return ResponseEntity.ok("OK");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("ERROR: " + e.getMessage());
+        }
+    }
+
+    // --- ENDPOINT SECUNDARIO: DESCARGA DIRECTA TRADICIONAL (SIN GRÁFICOS) ---
+    @GetMapping("/productos/exportar/pdf-directo")
+    public void exportarAPdfDirecto(HttpServletResponse response) throws IOException {
+        response.setContentType("application/pdf");
+
+        String cabeceraClave = "Content-Disposition";
+        String cabeceraValor = "attachment; filename=inventario_tienda.pdf";
+        response.setHeader(cabeceraClave, cabeceraValor);
+
+        List<Producto> listaProductos = productoService.obtenerTodos();
+        pdfService.exportarInventarioPdf(listaProductos, response);
     }
 }
