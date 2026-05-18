@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestión de Producto</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<div class="container py-5">
+    <div class="card shadow mx-auto" style="max-width: 600px;">
+        <div class="card-body">
+            <h2 class="fw-bold mb-4" th:text="${producto.id == null ? 'Añadir Producto' : 'Editar Producto'}"></h2>
+
+            <form th:action="@{/guardar}" th:object="${producto}" method="post">
+                <input type="hidden" th:field="*{id}">
+
+                <div class="mb-4 p-3 bg-light rounded border" th:if="${producto.id == null}">
+                    <label for="modeloExistente" class="form-label fw-bold text-secondary">Consultar o Reutilizar Modelo Existente</label>
+                    <select class="form-select" id="modeloExistente" onchange="autocompletarCampos()">
+                        <option value="">-- Es un modelo/talla nuevo (Escribir abajo) --</option>
+                        <option th:each="p : ${productosExistentes}"
+                                th:value="${p.id}"
+                                th:data-nombre="${p.nombre}"
+                                th:data-marca="${p.marca}"
+                                th:data-precio="${p.precio}"
+                                th:data-categoria="${p.categoria != null ? p.categoria.id : ''}"
+                                th:text="${p.marca + ' - ' + p.nombre + ' (Talla: ' + (p.talla != null ? p.talla : '-') + ' | Stock: ' + p.stock + ' u.)'}">
+                        </option>
+                    </select>
+                    <small class="text-muted d-block mt-1">Si seleccionas uno, se autocompletarán la Marca, el Modelo, el Precio y la Categoría abajo.</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Nombre del Modelo</label>
+                    <input type="text" th:field="*{nombre}" id="nombre" class="form-control" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Marca</label>
+                    <input type="text" th:field="*{marca}" id="marca" class="form-control" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="categoria" class="form-label fw-bold text-dark">Categoría / Tipo de Calzado</label>
+                    <select th:field="*{categoria}" id="categoria" class="form-select" required>
+                        <option value="">-- Selecciona una categoría --</option>
+                        <option th:each="cat : ${categorias}"
+                                th:value="${cat.id}"
+                                th:text="${cat.nombre}">
+                        </option>
+                    </select>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Precio (€)</label>
+                        <input type="number" step="0.01" th:field="*{precio}" id="precio" class="form-control" required>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="talla" class="form-label">Talla</label>
+                        <input type="text" class="form-control" id="talla" th:field="*{talla}" placeholder="Ej: 42, 44" required>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Stock</label>
+                        <input type="number" th:field="*{stock}" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="/inventario" class="btn btn-secondary">Cancelar</a>
+                    <button type="submit" class="btn btn-primary">Guardar Producto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    function autocompletarCampos() {
+        const select = document.getElementById('modeloExistente');
+        const optionSeleccionada = select.options[select.selectedIndex];
+
+        if (select.value !== "") {
+            const nombre = optionSeleccionada.getAttribute('data-nombre');
+            const marca = optionSeleccionada.getAttribute('data-marca');
+            const precio = optionSeleccionada.getAttribute('data-precio');
+            const categoriaId = optionSeleccionada.getAttribute('data-categoria');
+
+            // Inyectamos los textos
+            document.getElementById('nombre').value = nombre;
+            document.getElementById('marca').value = marca;
+            document.getElementById('precio').value = precio;
+
+            // Seleccionamos automAticamente la categoría en el desplegable secundario
+            document.getElementById('categoria').value = categoriaId;
+        } else {
+            // Limpiamos todo si vuelven a la opción por defecto
+            document.getElementById('nombre').value = "";
+            document.getElementById('marca').value = "";
+            document.getElementById('precio').value = "";
+            document.getElementById('categoria').value = "";
+        }
+    }
+</script>
+</body>
+</html>

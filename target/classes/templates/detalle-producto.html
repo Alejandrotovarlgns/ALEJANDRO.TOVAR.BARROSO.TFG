@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ficha de Producto</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light p-3">
+<div class="container bg-white shadow-sm p-4 rounded-4 text-center">
+    <img th:src="|https://loremflickr.com/400/400/sneaker,${p.marca}|" class="img-fluid rounded mb-3">
+    <h2 th:text="${p.nombre}" class="fw-bold"></h2>
+    <p th:text="${p.marca}" class="text-muted text-uppercase"></p>
+    <div class="display-6 fw-bold my-3" th:text="${p.precio + ' €'}"></div>
+    <div class="badge fs-5" th:classappend="${p.stock < 5} ? 'bg-danger' : 'bg-success'">
+        Stock disponible: [[${p.stock}]]
+    </div>
+</div>
+</body>
+</html>

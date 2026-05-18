@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tienda Online - Dashboard Profesional</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <style>
+        body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .navbar-brand { font-weight: 800; color: #fff !important; }
+        .card-product { border: none; border-radius: 15px; overflow: hidden; transition: 0.3s; }
+        .card-product:hover { transform: translateY(-10px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .stock-low { color: #dc3545 !important; font-weight: bold; }
+        .img-container { height: 200px; overflow: hidden; background: #eee; }
+        .img-container img { width: 100%; height: 100%; object-fit: cover; }
+        .search-container { margin-bottom: 30px; }
+
+        #qrcode-container img { margin: 0 auto; border: 8px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-black shadow-sm mb-4">
+    <div class="container">
+        <a class="navbar-brand d-flex align-items-center" href="#">
+            <span class="material-symbols-outlined me-2">analytics</span> TIENDA ONLINE
+        </a>
+        <div class="navbar-nav ms-auto">
+            <button sec:authorize="hasRole('ADMIN')" class="btn btn-outline-warning d-flex align-items-center">
+                <span class="material-symbols-outlined me-2">picture_as_pdf</span> Exportar Informe
+            </button>
+            <form th:action="@{/logout}" method="post" class="ms-2">
+                <button type="submit" class="btn btn-sm btn-outline-danger">Salir</button>
+            </form>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold m-0" th:text="${#authorization.expression('hasRole(''ADMIN'')') ? 'Gestión de Inventario Real-Time' : 'Catálogo de Productos'}"></h3>
+
+        <a sec:authorize="hasRole('ADMIN')" href="/nuevo" class="btn btn-success d-flex align-items-center shadow-sm px-3">
+            <span class="material-symbols-outlined me-1">add_circle</span> Añadir Zapatilla
+        </a>
+    </div>
+
+    <div class="search-container">
+        <div class="input-group input-group-lg shadow-sm">
+            <span class="input-group-text bg-white border-end-0">
+                <span class="material-symbols-outlined text-muted">search</span>
+            </span>
+            <input type="text" id="buscador" class="form-control border-start-0 ps-0"
+                   placeholder="Busca por modelo, marca o categoría..."
+                   onkeyup="filtrarProductos()">
+        </div>
+    </div>
+
+    <div class="row mb-5" sec:authorize="hasRole('ADMIN')">
+        <div class="col-md-8">
+            <div class="card shadow-sm p-4 h-100">
+                <h5 class="fw-bold mb-3">Tendencia de Ventas y Stock</h5>
+                <div class="bg-light d-flex align-items-center justify-content-center" style="height: 250px; border: 2px dashed #ccc;">
+                    <div class="text-center text-muted">
+                        <span class="material-symbols-outlined fs-1">monitoring</span>
+                        <p>Gráfico de Ventas (Próximamente con Chart.js)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm p-4 h-100">
+                <h5 class="fw-bold mb-3">Distribución por Marcas</h5>
+                <div class="bg-light rounded-circle mx-auto d-flex align-items-center justify-content-center" style="width: 200px; height: 200px; border: 2px dashed #ccc;">
+                    <span class="text-muted">Gráfico Circular</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4" id="contenedorProductos">
+        <div class="col producto-item" th:each="p : ${lista}">
+            <div class="card h-100 card-product shadow-sm">
+                <div class="img-container">
+                    <img th:src="|https://loremflickr.com/400/400/sneaker,${p.marca}|" alt="Zapatilla">
+                </div>
+
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <p class="text-muted small m-0">
+                            <span th:text="${p.marca}"></span> |
+                            <strong class="text-secondary badge-categoria" th:text="${p.categoria != null ? p.categoria.nombre : 'Sin categoría'}"></strong>
+                        </p>
+                        <span class="badge rounded-pill" th:classappend="${p.stock < 5} ? 'bg-danger' : 'bg-success'">
+                            [[${p.stock < 5 ? 'Low Stock' : 'OK'}]]
+                        </span>
+                    </div>
+                    <h5 class="card-title fw-bold" th:text="${p.nombre}"></h5>
+
+                    <div class="mt-3 p-2 bg-light rounded">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Precio:</span>
+                            <span class="fw-bold" th:text="${p.precio + ' €'}"></span>
+                        </div>
+
+                        <div class="d-grid gap-1">
+                            <button class="btn btn-sm btn-outline-secondary d-flex align-items-center justify-content-center shadow-sm"
+                                    type="button"
+                                    th:data-bs-target="'#tallas-' + ${p.id}"
+                                    data-bs-toggle="collapse"
+                                    aria-expanded="false">
+                                <span class="material-symbols-outlined fs-6 me-1">checkroom</span> Ver Tallas y Stock
+                            </button>
+                        </div>
+
+                        <div class="collapse mt-2" th:id="'tallas-' + ${p.id}">
+                            <table class="table table-sm table-bordered m-0 bg-white" style="font-size: 0.85rem;">
+                                <thead class="table-dark">
+                                <tr>
+                                    <th class="text-center">Talla</th>
+                                    <th class="text-center" sec:authorize="hasRole('ADMIN')">Stock</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr th:each="item : ${listaCompleta}"
+                                    th:if="${item.nombre.equalsIgnoreCase(p.nombre) && item.marca.equalsIgnoreCase(p.marca)}">
+                                    <td class="text-center fw-bold" th:text="${item.talla != null ? item.talla : '-'}">42</td>
+                                    <td class="text-center" sec:authorize="hasRole('ADMIN')"
+                                        th:text="${item.stock}"
+                                        th:classappend="${item.stock < 5} ? 'text-danger fw-bold' : ''">0</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-footer bg-white border-0 pb-3">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-dark btn-sm d-flex align-items-center justify-content-center"
+                                th:data-id="${p.id}"
+                                th:data-nombre="${p.nombre}"
+                                onclick="prepararQR(this)">
+                            <span class="material-symbols-outlined me-1">qr_code_scanner</span> QR
+                        </button>
+
+                        <div sec:authorize="hasRole('ADMIN')" class="btn-group shadow-sm">
+                            <a th:href="@{'/editar/' + ${p.id}}" class="btn btn-outline-primary btn-sm">
+                                <span class="material-symbols-outlined fs-6 align-middle">edit</span> Editar
+                            </a>
+                            <a th:href="@{'/eliminar/' + ${p.id}}"
+                               class="btn btn-outline-danger btn-sm"
+                               onclick="return confirm('¿Seguro que quieres eliminar este producto?')">
+                                <span class="material-symbols-outlined fs-6 align-middle">delete</span> Eliminar
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="qrModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content text-center p-4">
+            <h5 class="fw-bold mb-3">Ficha de Producto QR</h5>
+            <div id="qrcode-container" class="d-flex justify-content-center mb-3"></div>
+            <p id="qr-info" class="text-muted"></p>
+            <button type="button" class="btn btn-dark w-100" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<footer class="text-center py-5 mt-5">
+    <p class="text-muted">TFG Alejandro Tovar - Panel de Control v1.5</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<script>
+    function prepararQR(boton) {
+        const id = boton.getAttribute('data-id');
+        const nombre = boton.getAttribute('data-nombre');
+        const container = document.getElementById("qrcode-container");
+
+        container.innerHTML = "";
+
+        // Mantenemos intacta tu IP original tal y como me has pedido
+        const url = "http://172.20.10.4:8080/producto/detalle/" + id;
+
+        new QRCode(container, {
+            text: url,
+            width: 200,
+            height: 200
+        });
+
+        document.getElementById("qr-info").innerText = "Modelo: " + nombre;
+        const myModal = new bootstrap.Modal(document.getElementById('qrModal'));
+        myModal.show();
+    }
+
+    // FUNCIÓN DE FILTRADO ACTUALIZADA CON SOPORTE PARA CATEGORÍAS
+    function filtrarProductos() {
+        let filtro = document.getElementById('buscador').value.toLowerCase();
+        let tarjetas = document.getElementsByClassName('producto-item');
+        for (let i = 0; i < tarjetas.length; i++) {
+            let nombre = tarjetas[i].querySelector('.card-title').innerText.toLowerCase();
+            let marca = tarjetas[i].querySelector('.text-muted').innerText.toLowerCase();
+            let categoria = tarjetas[i].querySelector('.badge-categoria').innerText.toLowerCase();
+
+            if (nombre.includes(filtro) || marca.includes(filtro) || categoria.includes(filtro)) {
+                tarjetas[i].style.display = "";
+            } else {
+                tarjetas[i].style.display = "none";
+            }
+        }
+    }
+</script>
+</body>
+</html>
