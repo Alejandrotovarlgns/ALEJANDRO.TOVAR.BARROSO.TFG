@@ -30,6 +30,19 @@
                     <small class="text-muted d-block mt-1">Si seleccionas uno, se autocompletarán la Marca, el Modelo, el Precio y la Categoría abajo.</small>
                 </div>
 
+                <div class="mb-4 p-3 bg-light rounded border border-warning" th:if="${producto.id != null && variantesTallas != null && !variantesTallas.isEmpty()}">
+                    <label class="form-label fw-bold text-warning">Modificar otra talla de este modelo:</label>
+                    <select class="form-select" onchange="if(this.value) window.location.href='/editar/' + this.value">
+                        <option value="" disabled selected>-- Elige una variante para actualizar su stock --</option>
+                        <option th:each="v : ${variantesTallas}"
+                                th:value="${v.id}"
+                                th:text="'Talla: ' + ${v.talla} + ' (Stock actual: ' + ${v.stock} + ' u.)' "
+                                th:selected="${v.id == producto.id}">
+                        </option>
+                    </select>
+                    <small class="text-muted d-block mt-1">Al cambiar de opción, se guardará el borrador actual y saltarás a los datos específicos de esa talla.</small>
+                </div>
+
                 <div class="mb-3">
                     <label class="form-label">Nombre del Modelo</label>
                     <input type="text" th:field="*{nombre}" id="nombre" class="form-control" required>
@@ -59,6 +72,9 @@
                     <div class="col-md-4 mb-3">
                         <label for="talla" class="form-label">Talla</label>
                         <input type="text" class="form-control" id="talla" th:field="*{talla}" placeholder="Ej: 42, 44" required>
+                        <div class="form-text text-danger" style="font-size: 0.75rem;" th:if="${producto.id != null}">
+                            * Si cambias este texto por una talla nueva, se creará como otra línea de stock separada.
+                        </div>
                     </div>
                     <div class="col-md-4 mb-3">
                         <label class="form-label">Stock</label>
@@ -92,7 +108,7 @@
             document.getElementById('marca').value = marca;
             document.getElementById('precio').value = precio;
 
-            // Seleccionamos automAticamente la categoría en el desplegable secundario
+            // Seleccionamos automáticamente la categoría en el desplegable secundario
             document.getElementById('categoria').value = categoriaId;
         } else {
             // Limpiamos todo si vuelven a la opción por defecto

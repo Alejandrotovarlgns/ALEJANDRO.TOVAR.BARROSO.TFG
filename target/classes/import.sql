@@ -4,7 +4,7 @@ INSERT INTO categorias (nombre) VALUES ('Baloncesto');
 INSERT INTO usuarios (usuario, password, rol) VALUES ('admin', '$2a$10$NpbqI8XzysB.2DbiKWLg5.fGnfwXNbapXMYSkof5.IU3MFMYEkDXK', 'ADMIN');
 INSERT INTO usuarios (usuario, password, rol) VALUES ('usuario', '$2a$10$NpbqI8XzysB.2DbiKWLg5.fGnfwXNbapXMYSkof5.IU3MFMYEkDXK', 'USER');
 
--- 3. Insertamos los productos asociándolos a una categoría existente (el último número es el id_categoria)
+
 -- Las Nike Air Max (Casual -> ID 2)
 INSERT INTO productos (nombre, marca, precio, talla, stock, id_categoria) VALUES ('Nike Air Max', 'Nike', 120.99, '42', 10, 2);
 -- Las Adidas Ultraboost (Running -> ID 1)

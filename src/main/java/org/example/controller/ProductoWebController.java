@@ -2,7 +2,7 @@ package org.example.controller;
 
 import org.example.entity.Producto;
 import org.example.service.ProductoService;
-import org.example.service.CategoriaService; // Importamos el nuevo servicio
+import org.example.service.CategoriaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -19,13 +19,13 @@ public class ProductoWebController {
     private ProductoService productoService;
 
     @Autowired
-    private CategoriaService categoriaService; // Inyectamos el servicio de categorIas
+    private CategoriaService categoriaService;
 
     @GetMapping("/inventario")
     public String listar(Model model) {
         List<Producto> todosLosProductos = productoService.obtenerTodos();
 
-        // Filtramos para obtener solo un modelo Unico por combinaciOn de Marca y Nombre (evita duplicar tarjetas)
+        // Filtramos para obtener solo un modelo único por combinación de Marca y Nombre (evita duplicar tarjetas)
         List<Producto> listaAgrupada = todosLosProductos.stream()
                 .filter(Objects::nonNull)
                 .collect(Collectors.toMap(
@@ -37,7 +37,7 @@ public class ProductoWebController {
                 .stream()
                 .collect(Collectors.toList());
 
-        // 'lista' sirve para pintar las tarjetas Unicas en el catAlogo principal
+        // 'lista' sirve para pintar las tarjetas únicas en el catálogo principal
         model.addAttribute("lista", listaAgrupada);
 
         // 'listaCompleta' sirve para que la tabla de la tarjeta desglose todas las tallas y stocks reales
@@ -46,7 +46,7 @@ public class ProductoWebController {
         return "inventario";
     }
 
-    // Muestra el formulario para crear un nuevo producto enviando los existentes y las categorIas
+    // Muestra el formulario para crear un nuevo producto enviando los existentes y las categorías
     @GetMapping("/nuevo")
     public String mostrarFormularioNuevo(Model model) {
         model.addAttribute("producto", new Producto());
@@ -61,7 +61,7 @@ public class ProductoWebController {
         return "formulario-producto";
     }
 
-    // Guarda el producto (con lOgica de suma de stock corregida y robusta)
+    // Guarda el producto (Soporta creación, edición o generación de nuevas variantes de talla)
     @PostMapping("/guardar")
     public String guardar(@ModelAttribute("producto") Producto producto) {
 
@@ -70,53 +70,71 @@ public class ProductoWebController {
         if (producto.getMarca() != null) producto.setMarca(producto.getMarca().trim());
         if (producto.getTalla() != null) producto.setTalla(producto.getTalla().trim());
 
-        // Si es un producto nuevo desde el formulario (id es null), comprobamos si ya existe el mismo modelo y talla
-        if (producto.getId() == null) {
-            List<Producto> todos = productoService.obtenerTodos();
-            Producto productoRepetido = null;
+        // Comprobamos si ya existe exactamente este modelo con esta misma talla en la base de datos
+        List<Producto> todos = productoService.obtenerTodos();
+        Producto productoExistente = null;
 
-            for (Producto p : todos) {
-                if (p.getNombre() != null && p.getNombre().equalsIgnoreCase(producto.getNombre()) &&
-                        p.getMarca() != null && p.getMarca().equalsIgnoreCase(producto.getMarca()) &&
-                        p.getTalla() != null && p.getTalla().equalsIgnoreCase(producto.getTalla())) {
+        for (Producto p : todos) {
+            if (p.getNombre() != null && p.getNombre().equalsIgnoreCase(producto.getNombre()) &&
+                    p.getMarca() != null && p.getMarca().equalsIgnoreCase(producto.getMarca()) &&
+                    p.getTalla() != null && p.getTalla().equalsIgnoreCase(producto.getTalla())) {
 
-                    productoRepetido = p;
-                    break;
-                }
-            }
-
-            // SI YA EXISTE ESA TALLA: Sumamos el stock al registro existente
-            if (productoRepetido != null) {
-                int stockActual = productoRepetido.getStock() != null ? productoRepetido.getStock() : 0;
-                int stockNuevo = producto.getStock() != null ? producto.getStock() : 0;
-
-                productoRepetido.setStock(stockActual + stockNuevo);
-
-                // Actualizamos tambiEn la categorIa por si acaso se cambiO en el formulario
-                if (producto.getCategoria() != null) {
-                    productoRepetido.setCategoria(producto.getCategoria());
-                }
-
-                productoService.guardar(productoRepetido);
-                return "redirect:/inventario";
+                productoExistente = p;
+                break;
             }
         }
 
-        // SI ES EDICIOIN O UNA TALLA NUEVA EN DISTINTA LINEA: Se guarda normalmente creando un registro nuevo
+        // CASO 1: Si ya existe esa talla exacta en la BD (Evitamos duplicar registros de la misma talla)
+        if (productoExistente != null) {
+            // Si viene de "/nuevo" (id es null), actuamos sumando el stock como hacías originalmente
+            if (producto.getId() == null) {
+                int stockActual = productoExistente.getStock() != null ? productoExistente.getStock() : 0;
+                int stockNuevo = producto.getStock() != null ? producto.getStock() : 0;
+                productoExistente.setStock(stockActual + stockNuevo);
+            } else {
+                // Si viene de una edición, el usuario está fijando el stock manualmente a un valor concreto
+                productoExistente.setStock(producto.getStock());
+            }
+
+            // Actualizamos los campos generales por si sufrieron modificaciones en el formulario
+            productoExistente.setPrecio(producto.getPrecio());
+            if (producto.getCategoria() != null) {
+                productoExistente.setCategoria(producto.getCategoria());
+            }
+
+            productoService.guardar(productoExistente);
+            return "redirect:/inventario";
+        }
+
+        // CASO 2: La combinación de modelo + talla es nueva.
+        // Si venía un ID viejo porque estábamos editando, pero el usuario ha modificado la talla a una nueva,
+        // forzamos a que el ID sea null para que cree un nuevo registro y no sobrescriba la talla antigua.
+        if (producto.getId() != null) {
+            Producto original = productoService.obtenerPorId(producto.getId());
+            if (original != null && !original.getTalla().equalsIgnoreCase(producto.getTalla())) {
+                producto.setId(null);
+                producto.setConsultas(0); // Reseteamos consultas al ser una variante nueva
+            }
+        }
+
         productoService.guardar(producto);
         return "redirect:/inventario";
     }
 
-    // Muestra el formulario para editar incluyendo las categorIas
+    // Muestra el formulario para editar incluyendo variantes del mismo modelo
     @GetMapping("/editar/{id}")
     public String editar(@PathVariable("id") Integer id, Model model) {
         Producto p = productoService.obtenerPorId(id);
         model.addAttribute("producto", p);
 
-        // TambiEn los pasamos aquI por si se necesita consultar mientras se edita
-        model.addAttribute("productosExistentes", productoService.obtenerTodos());
+        // Buscamos todas las tallas que ya existen para esta misma zapatilla (Misma marca y nombre)
+        List<Producto> variantesMismoModelo = productoService.obtenerTodos().stream()
+                .filter(prod -> prod.getNombre() != null && prod.getNombre().equalsIgnoreCase(p.getNombre()) &&
+                        prod.getMarca() != null && prod.getMarca().equalsIgnoreCase(p.getMarca()))
+                .collect(Collectors.toList());
 
-        // Enviamos las categorIas aquI tambiEn para permitir cambiarla durante la ediciOn
+        model.addAttribute("variantesTallas", variantesMismoModelo);
+        model.addAttribute("productosExistentes", productoService.obtenerTodos());
         model.addAttribute("categorias", categoriaService.obtenerTodas());
 
         return "formulario-producto";
@@ -129,14 +147,25 @@ public class ProductoWebController {
         return "redirect:/inventario";
     }
 
-    // --- NUEVO METODO PARA EL QR ---
-    // Este mEtodo es pUblico (gracias al cambio en SecurityConfig)
+    // --- NUEVO METODO PARA EL QR MODIFICADO CON CONTADOR INSTANTÁNEO ---
     @GetMapping("/producto/detalle/{id}")
     public String verDetallePublico(@PathVariable("id") Integer id, Model model) {
         Producto p = productoService.obtenerPorId(id);
-        model.addAttribute("p", p);
+
+        if (p != null) {
+            // Sumamos 1 a las consultas de forma instantánea al escanear/acceder
+            int consultasActuales = p.getConsultas() != null ? p.getConsultas() : 0;
+            p.setConsultas(consultasActuales + 1);
+
+            // Guardamos el incremento en la base de datos
+            productoService.guardar(p);
+
+            model.addAttribute("p", p);
+        }
+
         return "detalle-producto";
     }
+
     // --- RUTA PARA MOSTRAR EL LOGIN PERSONALIZADO ---
     @GetMapping("/login")
     public String login() {
