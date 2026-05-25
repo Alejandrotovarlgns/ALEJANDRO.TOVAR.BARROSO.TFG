@@ -155,20 +155,28 @@ public class ProductoWebController {
         return "redirect:/inventario";
     }
 
-    // --- NUEVO METODO PARA EL QR MODIFICADO CON CONTADOR INSTANTÁNEO ---
+    // --- NUEVO METODO PARA EL QR MODIFICADO CON CONTADOR Y LISTADO DE TALLAS AGRUPADO ---
     @GetMapping("/producto/detalle/{id}")
     public String verDetallePublico(@PathVariable("id") Integer id, Model model) {
         Producto p = productoService.obtenerPorId(id);
 
         if (p != null) {
-            // Sumamos 1 a las consultas de forma instantánea al escanear/acceder
+            // 1. Sumamos 1 a las consultas del registro concreto escaneado para tu analítica
             int consultasActuales = p.getConsultas() != null ? p.getConsultas() : 0;
             p.setConsultas(consultasActuales + 1);
-
-            // Guardamos el incremento en la base de datos
             productoService.guardar(p);
 
+            // 2. LA CLAVE: Buscamos en la BD todos los registros hermanos con el mismo nombre
+            // De esta forma extraemos juntos los IDs como el 13 y el 14 del MySQL de Railway
+            List<Producto> todasLasTallas = productoService.obtenerTodos().stream()
+                    .filter(prod -> prod.getNombre() != null && prod.getNombre().equalsIgnoreCase(p.getNombre()))
+                    .collect(Collectors.toList());
+
+            // 3. Enviamos el producto base para la foto/nombre/precio
             model.addAttribute("p", p);
+
+            // 4. Enviamos todas las variantes de talla encontradas para que el HTML monte la tabla dinámica
+            model.addAttribute("variantesTallas", todasLasTallas);
         }
 
         return "detalle-producto";
