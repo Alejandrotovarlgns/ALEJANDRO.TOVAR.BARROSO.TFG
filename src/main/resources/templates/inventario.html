@@ -151,15 +151,54 @@
                             <a th:href="@{'/editar/' + ${p.id}}" class="btn btn-outline-primary btn-sm">
                                 <span class="material-symbols-outlined fs-6 align-middle">edit</span> Editar
                             </a>
-                            <a th:href="@{'/eliminar/' + ${p.id}}"
-                               class="btn btn-outline-danger btn-sm"
-                               onclick="return confirm('¿Seguro que quieres eliminar este producto?')">
+                            <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" th:data-bs-target="'#modalEliminar' + ${p.id}">
                                 <span class="material-symbols-outlined fs-6 align-middle">delete</span> Eliminar
-                            </a>
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <div sec:authorize="hasRole('ADMIN')" class="modal fade" th:id="'modalEliminar' + ${p.id}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content text-dark">
+                        <div class="modal-header">
+                            <h5 class="modal-title fw-bold" th:text="'Opciones de borrado: ' + ${p.marca} + ' ' + ${p.nombre}">Opciones de borrado</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body text-start">
+
+                            <p class="fw-bold mb-2 text-secondary">Opción A: Eliminar una talla específica</p>
+                            <form th:action="@{/productos/eliminar-talla}" method="post" class="row g-2 align-items-center mb-4">
+                                <div class="col-8">
+                                    <select name="tallaId" class="form-select" required>
+                                        <option value="" disabled selected>Selecciona la talla...</option>
+                                        <option th:each="itemComp : ${listaCompleta}"
+                                                th:if="${itemComp.nombre.equalsIgnoreCase(p.nombre) && itemComp.marca.equalsIgnoreCase(p.marca)}"
+                                                th:value="${itemComp.id}"
+                                                th:text="'Talla ' + ${itemComp.talla} + ' (Stock: ' + ${itemComp.stock} + ')'">
+                                        </option>
+                                    </select>
+                                </div>
+                                <div class="col-4">
+                                    <button type="submit" class="btn btn-warning w-100 fw-bold btn-sm py-2">Borrar Talla</button>
+                                </div>
+                            </form>
+
+                            <hr class="my-3">
+
+                            <p class="fw-bold mb-1 text-danger">Opción B: Zona Crítica</p>
+                            <p class="small text-muted mb-3">Se borrará permanentemente este modelo de zapatilla de la base de datos junto con todas las variantes de tallas y stocks asociados.</p>
+
+                            <form th:action="@{/productos/eliminar-completo/{id}(id=${p.id})}" method="post" onsubmit="return confirm('¿Estás completamente seguro de borrar TODO el producto y sus tallas?')">
+                                <button type="submit" class="btn btn-danger w-100 fw-bold">Eliminar Producto Completo</button>
+                            </form>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
@@ -247,22 +286,18 @@
 <script>
     // --- NUEVA FUNCIoN: EXTRACCIoN Y ENViO ASiNCRONO DEL INFORME CON IMaGENES ---
     function enviarInformeEmail() {
-        // 1. Obtenemos las referencias activas de los dos graficos usando Chart.js
         const chart1 = Chart.getChart("graficaConsultas");
         const chart2 = Chart.getChart("graficaStockBajo");
 
-        // 2. Extraemos el codigo Base64 (las imagenes reales renderizadas en la vista)
         const imgBase64_1 = chart1 ? chart1.toBase64Image() : "";
         const imgBase64_2 = chart2 ? chart2.toBase64Image() : "";
 
-        // 3. Empaquetamos los parámetros simulando la estructura del formulario clasico x-www-form-urlencoded
         const datosFormulario = new URLSearchParams();
         datosFormulario.append('grafico1', imgBase64_1);
         datosFormulario.append('grafico2', imgBase64_2);
 
         alert("Procesando analíticas y generando PDF corporativo... Por favor, espera un momento.");
 
-        // 4. Lanzamos la petición POST asíncrona hacia el controlador de Spring Boot
         fetch('/productos/exportar/pdf', {
             method: 'POST',
             headers: {

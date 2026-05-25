@@ -148,7 +148,35 @@ public class ProductoWebController {
         return "formulario-producto";
     }
 
-    // Elimina el producto
+    // --- OPCIÓN 1: ELIMINAR UNA TALLA ESPECÍFICA ---
+    @PostMapping("/productos/eliminar-talla")
+    public String eliminarTallaEspecifica(@RequestParam("tallaId") Integer tallaId) {
+        // Borramos directamente el registro único de esa talla usando su ID directo del MySQL
+        productoService.eliminar(tallaId);
+        return "redirect:/inventario";
+    }
+
+    // --- OPCIÓN 2: ELIMINAR EL PRODUCTO ENTERO (TODAS SUS TALLAS) ---
+    @PostMapping("/productos/eliminar-completo/{id}")
+    public String eliminarProductoCompleto(@PathVariable("id") Integer id) {
+        Producto p = productoService.obtenerPorId(id);
+
+        if (p != null) {
+            // Buscamos todas las filas en la base de datos que correspondan a la misma Marca y Nombre
+            List<Producto> todasLasTallas = productoService.obtenerTodos().stream()
+                    .filter(prod -> prod.getNombre() != null && prod.getNombre().equalsIgnoreCase(p.getNombre()) &&
+                            prod.getMarca() != null && prod.getMarca().equalsIgnoreCase(p.getMarca()))
+                    .collect(Collectors.toList());
+
+            // Recorremos la lista y las borramos todas del MySQL
+            for (Producto variante : todasLasTallas) {
+                productoService.eliminar(variante.getId());
+            }
+        }
+        return "redirect:/inventario";
+    }
+
+    // Dejamos la ruta antigua por si la usas en otro lado o por seguridad
     @GetMapping("/eliminar/{id}")
     public String eliminar(@PathVariable("id") Integer id) {
         productoService.eliminar(id);
