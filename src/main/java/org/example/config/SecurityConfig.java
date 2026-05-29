@@ -27,14 +27,20 @@ public class SecurityConfig {
                         .requestMatchers(new AntPathRequestMatcher("/h2-console/**")).permitAll()
                         .requestMatchers("/css/**", "/js/**", "/images/**").permitAll()
 
-                        // Permitimos explIcitamente el acceso a la URL de nuestro nuevo login
-                        .requestMatchers("/login").permitAll()
-
-                        // Acceso pUblico para escaneo de cOdigos QR
+                        // ACCESO PÚBLICO: Login, vista de registro de clientes y escaneo de códigos QR
+                        .requestMatchers("/login", "/registro").permitAll()
                         .requestMatchers("/producto/detalle/**").permitAll()
 
-                        // Rutas restringidas Unicamente al rol Administrador
-                        .requestMatchers("/nuevo", "/editar/**", "/eliminar/**", "/guardar").hasRole("ADMIN")
+                        // ACCESO COMPRA: Ruta exclusiva para que el cliente reste stock al pulsar comprar
+                        .requestMatchers("/productos/comprar").hasRole("CLIENTE")
+
+                        // ACCESO AL CATÁLOGO: El inventario general ahora lo comparten los tres roles
+                        .requestMatchers("/inventario").hasAnyRole("ADMIN", "USER", "CLIENTE")
+
+                        // ACCESO GESTIÓN: Rutas restringidas únicamente al rol Administrador (añadido las de borrado modal)
+                        .requestMatchers("/nuevo", "/editar/**", "/eliminar/**", "/guardar",
+                                "/productos/eliminar-talla", "/productos/eliminar-completo/**",
+                                "/productos/exportar/**").hasRole("ADMIN")
 
                         .anyRequest().authenticated()
                 )

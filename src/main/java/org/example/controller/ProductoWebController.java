@@ -1,16 +1,18 @@
 package org.example.controller;
 
 import org.example.entity.Producto;
+import org.example.entity.Usuario; // Aseguramos el import de tu entidad Usuario
 import org.example.service.ProductoService;
 import org.example.service.CategoriaService;
-import org.example.service.ProductoPdfService; // Inyectamos el nuevo servicio del PDF
+import org.example.service.ProductoPdfService;
+import org.example.service.UsuarioService; // Inyectamos tu servicio de usuarios modificado
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpServletResponse; // Necesario para la descarga del archivo
+import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.util.List;
@@ -27,7 +29,10 @@ public class ProductoWebController {
     private CategoriaService categoriaService;
 
     @Autowired
-    private ProductoPdfService pdfService; // Instanciamos el servicio del PDF
+    private ProductoPdfService pdfService;
+
+    @Autowired
+    private UsuarioService usuarioService; // Instanciamos el servicio de usuarios
 
     @GetMapping("/inventario")
     public String listar(Model model) {
@@ -39,7 +44,7 @@ public class ProductoWebController {
                 .collect(Collectors.toMap(
                         p -> (p.getMarca() + "-" + p.getNombre()).toLowerCase(),
                         p -> p,
-                        (existente, reemplazo) -> existente // Si se repite el modelo, se queda con la primera ocurrencia
+                        (existente, reemplazo) -> existente
                 ))
                 .values()
                 .stream()
@@ -115,13 +120,11 @@ public class ProductoWebController {
         }
 
         // CASO 2: La combinación de modelo + talla es nueva.
-        // Si venía un ID viejo porque estábamos editando, pero el usuario ha modificado la talla a una nueva,
-        // forzamos a que el ID sea null para que cree un nuevo registro y no sobrescriba la talla antigua.
         if (producto.getId() != null) {
             Producto original = productoService.obtenerPorId(producto.getId());
             if (original != null && !original.getTalla().equalsIgnoreCase(producto.getTalla())) {
                 producto.setId(null);
-                producto.setConsultas(0); // Reseteamos consultas al ser una variante nueva
+                producto.setConsultas(0);
             }
         }
 
@@ -151,7 +154,6 @@ public class ProductoWebController {
     // --- OPCIÓN 1: ELIMINAR UNA TALLA ESPECÍFICA ---
     @PostMapping("/productos/eliminar-talla")
     public String eliminarTallaEspecifica(@RequestParam("tallaId") Integer tallaId) {
-        // Borramos directamente el registro único de esa talla usando su ID directo del MySQL
         productoService.eliminar(tallaId);
         return "redirect:/inventario";
     }
@@ -162,13 +164,11 @@ public class ProductoWebController {
         Producto p = productoService.obtenerPorId(id);
 
         if (p != null) {
-            // Buscamos todas las filas en la base de datos que correspondan a la misma Marca y Nombre
             List<Producto> todasLasTallas = productoService.obtenerTodos().stream()
                     .filter(prod -> prod.getNombre() != null && prod.getNombre().equalsIgnoreCase(p.getNombre()) &&
                             prod.getMarca() != null && prod.getMarca().equalsIgnoreCase(p.getMarca()))
                     .collect(Collectors.toList());
 
-            // Recorremos la lista y las borramos todas del MySQL
             for (Producto variante : todasLasTallas) {
                 productoService.eliminar(variante.getId());
             }
@@ -176,34 +176,26 @@ public class ProductoWebController {
         return "redirect:/inventario";
     }
 
-    // Dejamos la ruta antigua por si la usas en otro lado o por seguridad
     @GetMapping("/eliminar/{id}")
     public String eliminar(@PathVariable("id") Integer id) {
         productoService.eliminar(id);
         return "redirect:/inventario";
     }
 
-    // --- NUEVO METODO PARA EL QR MODIFICADO CON CONTADOR Y LISTADO DE TALLAS AGRUPADO ---
     @GetMapping("/producto/detalle/{id}")
     public String verDetallePublico(@PathVariable("id") Integer id, Model model) {
         Producto p = productoService.obtenerPorId(id);
 
         if (p != null) {
-            // 1. Sumamos 1 a las consultas del registro concreto escaneado para tu analítica
             int consultasActuales = p.getConsultas() != null ? p.getConsultas() : 0;
             p.setConsultas(consultasActuales + 1);
             productoService.guardar(p);
 
-            // 2. LA CLAVE: Buscamos en la BD todos los registros hermanos con el mismo nombre
-            // De esta forma extraemos juntos los IDs como el 13 y el 14 del MySQL de Railway
             List<Producto> todasLasTallas = productoService.obtenerTodos().stream()
                     .filter(prod -> prod.getNombre() != null && prod.getNombre().equalsIgnoreCase(p.getNombre()))
                     .collect(Collectors.toList());
 
-            // 3. Enviamos el producto base para la foto/nombre/precio
             model.addAttribute("p", p);
-
-            // 4. Enviamos todas las variantes de talla encontradas para que el HTML monte la tabla dinámica
             model.addAttribute("variantesTallas", todasLasTallas);
         }
 
@@ -216,20 +208,49 @@ public class ProductoWebController {
         return "login";
     }
 
-    // --- NUEVO ENPOINT: RECIBE LAS GRÁFICAS DEL FRONTEND Y ENVÍA EL PDF POR CORREO ---
+    // --- NUEVO ENDPOINT: MOSTRAR EL FORMULARIO DE REGISTRO PÚBLICO ---
+    @GetMapping("/registro")
+    public String mostrarFormularioRegistro(Model model) {
+        model.addAttribute("usuario", new Usuario());
+        return "registro";
+    }
+
+    // --- NUEVO ENDPOINT: PROCESAR LA CREACIÓN DE LA CUENTA DEL CLIENTE ---
+    @PostMapping("/registro")
+    public String registrarCliente(@ModelAttribute("usuario") Usuario usuario) {
+        usuarioService.registrarNuevoCliente(usuario);
+        return "redirect:/login?registrado=true";
+    }
+
+    // --- NUEVO ENDPOINT: PROCESAR LA COMPRA EXCLUSIVA DEL CLIENTE (RESTAR STOCK) ---
+    @PostMapping("/productos/comprar")
+    public String comprarProducto(@RequestParam("tallaId") Integer tallaId) {
+        Producto varianteTalla = productoService.obtenerPorId(tallaId);
+
+        if (varianteTalla != null) {
+            int stockActual = varianteTalla.getStock() != null ? varianteTalla.getStock() : 0;
+
+            if (stockActual > 0) {
+                // Restamos 1 unidad del stock general en el MySQL local / remoto
+                varianteTalla.setStock(stockActual - 1);
+                productoService.guardar(varianteTalla);
+                return "redirect:/inventario?compraExitosa=true";
+            } else {
+                return "redirect:/inventario?errorStock=true";
+            }
+        }
+        return "redirect:/inventario";
+    }
+
+    // --- ENDPOINT: RECIBE LAS GRÁFICAS DEL FRONTEND Y ENVÍA EL PDF POR CORREO ---
     @PostMapping("/productos/exportar/pdf")
     @ResponseBody
     public ResponseEntity<String> exportarYEnviarAPdf(
             @RequestParam(value = "grafico1", required = false) String grafico1,
             @RequestParam(value = "grafico2", required = false) String grafico2) {
         try {
-            // Extraemos la lista real de la base de datos de MySQL
             List<Producto> listaProductos = productoService.obtenerTodos();
-
-            // Ejecutamos el servicio unificado (monta la tabla, añade los gráficos y dispara el mail)
             pdfService.generarYEnviarPorCorreo(listaProductos, grafico1, grafico2);
-
-            // Retornamos la palabra de confirmación que espera interceptar el JavaScript del inventario.html
             return ResponseEntity.ok("OK");
         } catch (Exception e) {
             e.printStackTrace();

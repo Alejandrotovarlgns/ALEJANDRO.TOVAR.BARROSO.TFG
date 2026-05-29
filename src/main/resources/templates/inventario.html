@@ -121,20 +121,44 @@
                                 <thead class="table-dark">
                                 <tr>
                                     <th class="text-center">Talla</th>
-                                    <th class="text-center" sec:authorize="hasRole('ADMIN')">Stock</th>
+                                    <th class="text-center" sec:authorize="hasAnyRole('ADMIN', 'CLIENTE')">Stock</th>
                                 </tr>
                                 </thead>
                                 <tbody>
                                 <tr th:each="item : ${listaCompleta}"
                                     th:if="${item.nombre.equalsIgnoreCase(p.nombre) && item.marca.equalsIgnoreCase(p.marca)}">
                                     <td class="text-center fw-bold" th:text="${item.talla != null ? item.talla : '-'}">42</td>
-                                    <td class="text-center" sec:authorize="hasRole('ADMIN')"
+                                    <td class="text-center" sec:authorize="hasAnyRole('ADMIN', 'CLIENTE')"
                                         th:text="${item.stock}"
                                         th:classappend="${item.stock < 5} ? 'text-danger fw-bold' : ''">0</td>
                                 </tr>
                                 </tbody>
                             </table>
                         </div>
+
+                        <div sec:authorize="hasRole('CLIENTE')" class="mt-3 p-2 border border-success rounded bg-white shadow-sm">
+                            <p class="fw-bold small text-success mb-1 d-flex align-items-center">
+                                <span class="material-symbols-outlined fs-6 me-1">shopping_cart</span> Zona de Compra
+                            </p>
+
+                            <form th:action="@{/productos/comprar}" method="post" class="row g-1 align-items-center">
+                                <div class="col-7">
+                                    <select name="tallaId" class="form-select form-select-sm" required>
+                                        <option value="" disabled selected>Elige tu talla...</option>
+                                        <option th:each="itemComp : ${listaCompleta}"
+                                                th:if="${itemComp.nombre.equalsIgnoreCase(p.nombre) && itemComp.marca.equalsIgnoreCase(p.marca)}"
+                                                th:disabled="${itemComp.stock <= 0}"
+                                                th:value="${itemComp.id}"
+                                                th:text="'Talla ' + ${itemComp.talla} + ${itemComp.stock <= 0 ? ' (Agotado)' : ' - Stock: ' + itemComp.stock}">
+                                        </option>
+                                    </select>
+                                </div>
+                                <div class="col-5">
+                                    <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Comprar</button>
+                                </div>
+                            </form>
+                        </div>
+
                     </div>
                 </div>
 
@@ -284,7 +308,6 @@
 </script>
 
 <script>
-    // --- NUEVA FUNCIoN: EXTRACCIoN Y ENViO ASiNCRONO DEL INFORME CON IMaGENES ---
     function enviarInformeEmail() {
         const chart1 = Chart.getChart("graficaConsultas");
         const chart2 = Chart.getChart("graficaStockBajo");
