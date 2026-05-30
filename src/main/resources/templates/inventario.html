@@ -175,6 +175,37 @@
                             <span class="fw-bold" th:text="${p.precio + ' €'}"></span>
                         </div>
 
+                        <div sec:authorize="hasAnyRole('ADMIN', 'USER')" class="mt-3 mb-2 bg-white p-2 border rounded shadow-sm">
+                            <p class="fw-bold small text-secondary mb-2 d-flex align-items-center">
+                                <span class="material-symbols-outlined fs-5 me-1">grid_on</span> Stocks por Talla:
+                            </p>
+                            <div class="table-responsive" style="max-height: 140px; overflow-y: auto;">
+                                <table class="table table-sm table-hover align-middle text-center mb-0" style="font-size: 0.8rem;">
+                                    <thead class="table-dark">
+                                    <tr>
+                                        <th>Talla</th>
+                                        <th>Stock</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr th:each="itemComp : ${listaCompleta}"
+                                        th:if="${itemComp.nombre.equalsIgnoreCase(p.nombre) && itemComp.marca.equalsIgnoreCase(p.marca)}">
+                                        <td>
+                                            <span class="fw-semibold text-dark" th:text="${itemComp.talla}"></span>
+                                        </td>
+                                        <td>
+                                                <span class="badge"
+                                                      th:classappend="${itemComp.stock == 0} ? 'bg-secondary' : (${itemComp.stock < 5} ? 'bg-warning text-dark' : 'bg-success')"
+                                                      th:text="${itemComp.stock + ' ud'}">
+                                                    0 ud
+                                                </span>
+                                        </td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
                         <div sec:authorize="hasRole('CLIENTE')" class="mt-2 bg-white p-2 border rounded shadow-sm">
                             <p class="fw-bold small text-dark mb-2 d-flex align-items-center">
                                 <span class="material-symbols-outlined fs-5 me-1">palette</span> Selecciona tu talla:
