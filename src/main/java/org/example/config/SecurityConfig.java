@@ -31,8 +31,8 @@ public class SecurityConfig {
                         .requestMatchers("/login").permitAll()
                         .requestMatchers("/producto/detalle/**").permitAll()
 
-                        // ACCESO COMPRA: Ruta exclusiva para que el cliente reste stock al pulsar comprar
-                        .requestMatchers("/productos/comprar").hasRole("CLIENTE")
+                        // ACCESO COMPRA Y CARRITO: Rutas exclusivas para que el cliente gestione su cesta y compre
+                        .requestMatchers("/productos/comprar", "/carrito/**").hasRole("CLIENTE")
 
                         // ACCESO AL CATÁLOGO: El inventario general ahora lo comparten los tres roles
                         .requestMatchers("/inventario").hasAnyRole("ADMIN", "USER", "CLIENTE")
