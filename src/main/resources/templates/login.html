@@ -63,11 +63,6 @@
                     Has cerrado sesión correctamente.
                 </div>
 
-                <div th:if="${param.registrado}" class="alert alert-success d-flex align-items-center small" role="alert">
-                    <span class="material-symbols-outlined me-2 fs-5">assignment_turned_in</span>
-                    ¡Cuenta creada con éxito! Ya puedes iniciar sesión.
-                </div>
-
                 <form th:action="@{/login}" method="post">
                     <div class="mb-3">
                         <label class="form-label fw-semibold text-secondary">Usuario</label>
@@ -85,13 +80,6 @@
                         </button>
                     </div>
                 </form>
-
-                <div class="text-center mt-3 border-top pt-3">
-                    <p class="small text-muted mb-0">¿Eres nuevo en la tienda?</p>
-                    <a href="/registro" class="text-dark fw-bold text-decoration-none d-flex align-items-center justify-content-center mt-1 small">
-                        <span class="material-symbols-outlined fs-6 me-1">person_add</span> Regístrate aquí
-                    </a>
-                </div>
 
             </div>
             <div class="text-center mt-4">

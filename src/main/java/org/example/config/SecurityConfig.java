@@ -27,8 +27,8 @@ public class SecurityConfig {
                         .requestMatchers(new AntPathRequestMatcher("/h2-console/**")).permitAll()
                         .requestMatchers("/css/**", "/js/**", "/images/**").permitAll()
 
-                        // ACCESO PÚBLICO: Login, vista de registro de clientes y escaneo de códigos QR
-                        .requestMatchers("/login", "/registro").permitAll()
+                        // ACCESO PÚBLICO LIMPIO: Solo permitimos el Login y ver el detalle de la zapatilla sin cuenta
+                        .requestMatchers("/login").permitAll()
                         .requestMatchers("/producto/detalle/**").permitAll()
 
                         // ACCESO COMPRA: Ruta exclusiva para que el cliente reste stock al pulsar comprar

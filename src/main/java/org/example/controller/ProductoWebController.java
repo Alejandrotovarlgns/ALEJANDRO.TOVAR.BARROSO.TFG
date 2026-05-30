@@ -1,11 +1,11 @@
 package org.example.controller;
 
 import org.example.entity.Producto;
-import org.example.entity.Usuario; // Aseguramos el import de tu entidad Usuario
+import org.example.entity.Usuario;
 import org.example.service.ProductoService;
 import org.example.service.CategoriaService;
 import org.example.service.ProductoPdfService;
-import org.example.service.UsuarioService; // Inyectamos tu servicio de usuarios modificado
+import org.example.service.UsuarioService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -32,7 +32,7 @@ public class ProductoWebController {
     private ProductoPdfService pdfService;
 
     @Autowired
-    private UsuarioService usuarioService; // Instanciamos el servicio de usuarios
+    private UsuarioService usuarioService;
 
     @GetMapping("/inventario")
     public String listar(Model model) {
@@ -208,21 +208,7 @@ public class ProductoWebController {
         return "login";
     }
 
-    // --- NUEVO ENDPOINT: MOSTRAR EL FORMULARIO DE REGISTRO PÚBLICO ---
-    @GetMapping("/registro")
-    public String mostrarFormularioRegistro(Model model) {
-        model.addAttribute("usuario", new Usuario());
-        return "registro";
-    }
-
-    // --- NUEVO ENDPOINT: PROCESAR LA CREACIÓN DE LA CUENTA DEL CLIENTE ---
-    @PostMapping("/registro")
-    public String registrarCliente(@ModelAttribute("usuario") Usuario usuario) {
-        usuarioService.registrarNuevoCliente(usuario);
-        return "redirect:/login?registrado=true";
-    }
-
-    // --- NUEVO ENDPOINT: PROCESAR LA COMPRA EXCLUSIVA DEL CLIENTE (RESTAR STOCK) ---
+    // --- ENDPOINT: PROCESAR LA COMPRA EXCLUSIVA DEL CLIENTE (RESTAR STOCK) ---
     @PostMapping("/productos/comprar")
     public String comprarProducto(@RequestParam("tallaId") Integer tallaId) {
         Producto varianteTalla = productoService.obtenerPorId(tallaId);
