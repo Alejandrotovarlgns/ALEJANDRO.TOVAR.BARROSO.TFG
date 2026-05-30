@@ -182,23 +182,30 @@ public class ProductoWebController {
         return "redirect:/inventario";
     }
 
+    // --- DETALLE: Recupera la lista de tallas para la tabla de Admin/User ---
     @GetMapping("/producto/detalle/{id}")
     public String verDetallePublico(@PathVariable("id") Integer id, Model model) {
+
         Producto p = productoService.obtenerPorId(id);
 
         if (p != null) {
+            // Contabilizamos la consulta de la zapatilla
             int consultasActuales = p.getConsultas() != null ? p.getConsultas() : 0;
             p.setConsultas(consultasActuales + 1);
             productoService.guardar(p);
 
+            // Buscamos todas las variantes de talla de este modelo específico
             List<Producto> todasLasTallas = productoService.obtenerTodos().stream()
-                    .filter(prod -> prod.getNombre() != null && prod.getNombre().equalsIgnoreCase(p.getNombre()))
+                    .filter(prod -> prod.getNombre() != null && prod.getNombre().equalsIgnoreCase(p.getNombre()) &&
+                            prod.getMarca() != null && prod.getMarca().equalsIgnoreCase(p.getMarca()))
                     .collect(Collectors.toList());
 
+            // Enviamos el producto y la lista de tallas a la plantilla
             model.addAttribute("p", p);
             model.addAttribute("variantesTallas", todasLasTallas);
         }
 
+        // Renderiza el detalle clásico con la tabla de stock para Admin y User
         return "detalle-producto";
     }
 
@@ -208,18 +215,22 @@ public class ProductoWebController {
         return "login";
     }
 
-    // --- ENDPOINT: PROCESAR LA COMPRA EXCLUSIVA DEL CLIENTE (RESTAR STOCK) ---
+    // --- ENDPOINT: PROCESAR COMPRA (RESTAR STOCK) ---
     @PostMapping("/productos/comprar")
-    public String comprarProducto(@RequestParam("tallaId") Integer tallaId) {
+    public String comprarProducto(
+            @RequestParam("tallaId") Integer tallaId,
+            @RequestParam(value = "origen", required = false) String origen) {
+
         Producto varianteTalla = productoService.obtenerPorId(tallaId);
 
         if (varianteTalla != null) {
             int stockActual = varianteTalla.getStock() != null ? varianteTalla.getStock() : 0;
 
             if (stockActual > 0) {
-                // Restamos 1 unidad del stock general en el MySQL local / remoto
+                // Restamos la unidad en base de datos
                 varianteTalla.setStock(stockActual - 1);
                 productoService.guardar(varianteTalla);
+
                 return "redirect:/inventario?compraExitosa=true";
             } else {
                 return "redirect:/inventario?errorStock=true";
