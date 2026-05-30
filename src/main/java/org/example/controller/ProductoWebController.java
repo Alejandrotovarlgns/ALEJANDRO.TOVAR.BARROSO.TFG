@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
@@ -182,17 +183,19 @@ public class ProductoWebController {
         return "redirect:/inventario";
     }
 
-    // --- DETALLE: Recupera la lista de tallas para la tabla de Admin/User ---
+    // --- DETALLE: Cuenta consultas SOLO si el rol es CLIENTE ---
     @GetMapping("/producto/detalle/{id}")
-    public String verDetallePublico(@PathVariable("id") Integer id, Model model) {
+    public String verDetallePublico(@PathVariable("id") Integer id, Model model, HttpServletRequest request) {
 
         Producto p = productoService.obtenerPorId(id);
 
         if (p != null) {
-            // Contabilizamos la consulta de la zapatilla
-            int consultasActuales = p.getConsultas() != null ? p.getConsultas() : 0;
-            p.setConsultas(consultasActuales + 1);
-            productoService.guardar(p);
+            // CAMBIO CLAVE: Solo sumamos la consulta si el usuario que accede es un CLIENTE
+            if (request.isUserInRole("ROLE_CLIENTE")) {
+                int consultasActuales = p.getConsultas() != null ? p.getConsultas() : 0;
+                p.setConsultas(consultasActuales + 1);
+                productoService.guardar(p);
+            }
 
             // Buscamos todas las variantes de talla de este modelo específico
             List<Producto> todasLasTallas = productoService.obtenerTodos().stream()
