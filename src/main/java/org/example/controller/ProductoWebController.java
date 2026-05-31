@@ -37,6 +37,12 @@ public class ProductoWebController {
     @Autowired
     private UsuarioService usuarioService;
 
+    // --- NUEVA RUTA RAÍZ: Redirige automáticamente al inventario para evitar el error 404 ---
+    @GetMapping("/")
+    public String raiz() {
+        return "redirect:/inventario";
+    }
+
     @GetMapping("/inventario")
     public String listar(Model model) {
         List<Producto> todosLosProductos = productoService.obtenerTodos();
