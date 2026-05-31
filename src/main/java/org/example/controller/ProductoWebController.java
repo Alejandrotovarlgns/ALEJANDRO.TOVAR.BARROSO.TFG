@@ -9,6 +9,8 @@ import org.example.service.UsuarioService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -190,11 +192,19 @@ public class ProductoWebController {
         Producto p = productoService.obtenerPorId(id);
 
         if (p != null) {
-            // CAMBIO CLAVE: Solo sumamos la consulta si el usuario que accede es un CLIENTE
-            if (request.isUserInRole("ROLE_CLIENTE")) {
-                int consultasActuales = p.getConsultas() != null ? p.getConsultas() : 0;
-                p.setConsultas(consultasActuales + 1);
-                productoService.guardar(p);
+            // SOLUCIÓN AL FALLO ANALÍTICO: Inspeccionamos de forma explícita el contexto de Spring Security
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+            if (auth != null && auth.isAuthenticated()) {
+                // Evaluamos si el token de sesión posee estrictamente la autoridad de Cliente
+                boolean esCliente = auth.getAuthorities().stream()
+                        .anyMatch(a -> a.getAuthority().equals("ROLE_CLIENTE"));
+
+                if (esCliente) {
+                    int consultasActuales = p.getConsultas() != null ? p.getConsultas() : 0;
+                    p.setConsultas(consultasActuales + 1);
+                    productoService.guardar(p); // Persiste de inmediato en el motor MySQL de Railway
+                }
             }
 
             // Buscamos todas las variantes de talla de este modelo específico
