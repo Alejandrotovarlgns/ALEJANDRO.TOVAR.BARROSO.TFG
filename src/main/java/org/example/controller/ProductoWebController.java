@@ -185,7 +185,7 @@ public class ProductoWebController {
         return "redirect:/inventario";
     }
 
-    // --- DETALLE: Cuenta consultas AUTOMÁTICAMENTE si escanean el QR real desde fuera ---
+    // --- DETALLE: Cuenta consultas AUTOMÁTICAMENTE SÓLO si escanean el QR real desde fuera ---
     @GetMapping("/producto/detalle/{id}")
     public String verDetallePublico(@PathVariable("id") Integer id, Model model, HttpServletRequest request) {
 
@@ -217,32 +217,6 @@ public class ProductoWebController {
         }
 
         return "detalle-producto";
-    }
-
-    // --- NUEVO ENDPOINT REST: Incremento asíncrono para el botón "QR" del catálogo ---
-    @PostMapping("/productos/registrar-consulta/{id}")
-    @ResponseBody
-    public ResponseEntity<String> registrarConsultaDesdeBotonCatálogo(@PathVariable("id") Integer id) {
-        Producto p = productoService.obtenerPorId(id);
-        if (p != null) {
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            boolean esPersonalInterno = false;
-
-            if (auth != null && auth.isAuthenticated()) {
-                esPersonalInterno = auth.getAuthorities().stream()
-                        .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_USER"));
-            }
-
-            // Excluimos la gestión interna para no desvirtuar las estadísticas en tus pruebas
-            if (!esPersonalInterno) {
-                int consultasActuales = p.getConsultas() != null ? p.getConsultas() : 0;
-                p.setConsultas(consultasActuales + 1);
-                productoService.guardar(p);
-                return ResponseEntity.ok("Métrica registrada con éxito (+1)");
-            }
-            return ResponseEntity.ok("Usuario es ADMIN/USER. No suma al contador.");
-        }
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Producto no encontrado.");
     }
 
     // --- RUTA PARA MOSTRAR EL LOGIN PERSONALIZADO ---

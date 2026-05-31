@@ -424,25 +424,11 @@
         container.innerHTML = "";
 
         const baseDomain = window.location.origin;
-        const url = baseDomain + "/producto/detalle/" + id;
+        const urlDetalle = baseDomain + "/producto/detalle/" + id;
 
-        // =========================================================================
-        // TRUCO TÉCNICO: Llamada asíncrona de fondo al endpoint de detalle.
-        // Esto fuerza al backend a procesar la lógica de analítica e incrementar
-        // el contador de consultas instantáneamente en la base de datos MySQL.
-        // =========================================================================
-        fetch(url)
-            .then(response => {
-                console.log("Aviso analítico enviado al servidor para el producto ID: " + id);
-            })
-            .catch(error => {
-                console.error("Error al registrar la métrica en segundo plano:", error);
-            });
-        // =========================================================================
-
-        // Generamos el QR de forma visual en el modal
+        // Generamos visualmente el QR en la pantalla modal (Sin avisar al servidor)
         new QRCode(container, {
-            text: url,
+            text: urlDetalle,
             width: 200,
             height: 200
         });
