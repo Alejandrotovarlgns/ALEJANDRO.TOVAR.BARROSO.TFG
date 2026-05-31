@@ -185,41 +185,64 @@ public class ProductoWebController {
         return "redirect:/inventario";
     }
 
-    // --- DETALLE: Cuenta consultas SOLO si el rol es CLIENTE ---
+    // --- DETALLE: Cuenta consultas AUTOMÁTICAMENTE si escanean el QR real desde fuera ---
     @GetMapping("/producto/detalle/{id}")
     public String verDetallePublico(@PathVariable("id") Integer id, Model model, HttpServletRequest request) {
 
         Producto p = productoService.obtenerPorId(id);
 
         if (p != null) {
-            // SOLUCIÓN AL FALLO ANALÍTICO: Inspeccionamos de forma explícita el contexto de Spring Security
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            boolean esPersonalInterno = false;
 
             if (auth != null && auth.isAuthenticated()) {
-                // Evaluamos si el token de sesión posee estrictamente la autoridad de Cliente
-                boolean esCliente = auth.getAuthorities().stream()
-                        .anyMatch(a -> a.getAuthority().equals("ROLE_CLIENTE"));
-
-                if (esCliente) {
-                    int consultasActuales = p.getConsultas() != null ? p.getConsultas() : 0;
-                    p.setConsultas(consultasActuales + 1);
-                    productoService.guardar(p); // Persiste de inmediato en el motor MySQL de Railway
-                }
+                esPersonalInterno = auth.getAuthorities().stream()
+                        .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_USER"));
             }
 
-            // Buscamos todas las variantes de talla de este modelo específico
+            // Si es un escaneo real externo por móvil (Anónimo/Cliente), sumamos analítica
+            if (!esPersonalInterno) {
+                int consultasActuales = p.getConsultas() != null ? p.getConsultas() : 0;
+                p.setConsultas(consultasActuales + 1);
+                productoService.guardar(p);
+            }
+
             List<Producto> todasLasTallas = productoService.obtenerTodos().stream()
                     .filter(prod -> prod.getNombre() != null && prod.getNombre().equalsIgnoreCase(p.getNombre()) &&
                             prod.getMarca() != null && prod.getMarca().equalsIgnoreCase(p.getMarca()))
                     .collect(Collectors.toList());
 
-            // Enviamos el producto y la lista de tallas a la plantilla
             model.addAttribute("p", p);
             model.addAttribute("variantesTallas", todasLasTallas);
         }
 
-        // Renderiza el detalle clásico con la tabla de stock para Admin y User
         return "detalle-producto";
+    }
+
+    // --- NUEVO ENDPOINT REST: Incremento asíncrono para el botón "QR" del catálogo ---
+    @PostMapping("/productos/registrar-consulta/{id}")
+    @ResponseBody
+    public ResponseEntity<String> registrarConsultaDesdeBotonCatálogo(@PathVariable("id") Integer id) {
+        Producto p = productoService.obtenerPorId(id);
+        if (p != null) {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            boolean esPersonalInterno = false;
+
+            if (auth != null && auth.isAuthenticated()) {
+                esPersonalInterno = auth.getAuthorities().stream()
+                        .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_USER"));
+            }
+
+            // Excluimos la gestión interna para no desvirtuar las estadísticas en tus pruebas
+            if (!esPersonalInterno) {
+                int consultasActuales = p.getConsultas() != null ? p.getConsultas() : 0;
+                p.setConsultas(consultasActuales + 1);
+                productoService.guardar(p);
+                return ResponseEntity.ok("Métrica registrada con éxito (+1)");
+            }
+            return ResponseEntity.ok("Usuario es ADMIN/USER. No suma al contador.");
+        }
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Producto no encontrado.");
     }
 
     // --- RUTA PARA MOSTRAR EL LOGIN PERSONALIZADO ---
